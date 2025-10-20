@@ -8,12 +8,14 @@ import time
 import tiktoken
 import datetime
 import re
-import importlib
 import urllib.parse
 import requests
-import read_sourcefile as rs
-
-importlib.reload(rs)  # 明示的にリロードする
+# read_sourcefile_code.py から直接関数をインポート
+from read_sourcefile_code import (
+    read_ipynb, 
+    extract_code_and_comments, 
+    read_txtfile
+)
 
 #UI構成
 title = st.title("データサイエンス自習補助ツール")
@@ -215,10 +217,10 @@ def get_file_strs(file):
     #テキストボックスのプロンプトを実行
     code_str = ""
     if file_extension == ".ipynb" or file_extension == ".R":
-        notebook = rs.read_ipynb(file)
-        code_str = rs.extract_code_and_comments(notebook)
+        notebook = read_ipynb(file)
+        code_str = extract_code_and_comments(notebook)
     elif file_extension == ".py" or file_extension == ".txt":
-        code_str = rs.read_txtfile(file)
+        code_str = read_txtfile(file)
     else:
         st.write("対応していないファイル形式です。")
         st.stop()
@@ -462,7 +464,7 @@ if ex_button:
                                     if github_url.endswith('.ipynb'):
                                         try:
                                             notebook_data = json.loads(response.text)
-                                            file_content = rs.extract_code_and_comments(notebook_data)
+                                            file_content = extract_code_and_comments(notebook_data)
                                         except:
                                             file_content = response.text
                                     else:
@@ -512,8 +514,28 @@ if ex_button:
                                 error_msg += f", File: {'/'.join(file_path_parts)}"
                             raise Exception(error_msg)
                     else:
-                        # read_sourcefileライブラリを使用（フォールバック）
-                        file_content = rs.get_file_from_github(github_url, None)
+                        # フォールバック: URLを直接変換してアクセス
+                        try:
+                            raw_url = github_url.replace("github.com", "raw.githubusercontent.com").replace("/blob/", "/")
+                            headers = {
+                                "Accept": "application/vnd.github.v3.raw",
+                                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+                            }
+                            response = requests.get(raw_url, headers=headers, timeout=10)
+                            
+                            if response.status_code == 200:
+                                if github_url.endswith('.ipynb'):
+                                    try:
+                                        notebook_data = json.loads(response.text)
+                                        file_content = extract_code_and_comments(notebook_data)
+                                    except:
+                                        file_content = response.text
+                                else:
+                                    file_content = response.text
+                            else:
+                                raise Exception(f"Failed to fetch file: {response.status_code}")
+                        except Exception as e:
+                            raise Exception(f"Error processing GitHub URL: {e}")
                         
                 except Exception as e:
                     print(f"⚠️ GitHubファイル取得エラー: {e}")
