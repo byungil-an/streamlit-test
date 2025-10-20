@@ -343,8 +343,8 @@ if ex_button:
             if not openai_api_key:
                 st.info("OpenAI API Keyを入力してください。")
                 st.stop()
-            else:
-                openai.api_key = openai_api_key  # 入力されたAPIキーを設定
+            
+            client = openai.OpenAI(api_key=openai_api_key)  # OpenAIクライアントを作成
 
             output_contents = []
             request_count = 0  # APIリクエスト回数のカウント
@@ -582,7 +582,7 @@ if ex_button:
 
                 print("*****プロンプト実行*****")
                 input_tokens = count_tokens(prompt,choice_mode)
-                response = openai.chat.completions.create(
+                response = client.chat.completions.create(
                     model=choice_mode,  # 使用するモデル（gpt-4やgpt-3.5-turboなど）
                     messages=[  # メッセージリストの構造
                         {"role": "system", "content": "You are a helpful assistant."},
